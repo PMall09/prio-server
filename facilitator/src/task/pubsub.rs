@@ -65,7 +65,7 @@ fn gcp_pubsub_modify_ack_deadline(
 /// Represents the response to a subscription.pull request. See API doc for
 /// discussion of fields.
 /// https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#response-body
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct PullResponse {
     received_messages: Option<Vec<ReceivedMessage>>,
@@ -74,7 +74,7 @@ struct PullResponse {
 /// Represents a message received from a PubSub topic subscription. See API doc
 /// for discussion of fields.
 /// https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#receivedmessage
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct ReceivedMessage {
     ack_id: String,
@@ -85,7 +85,7 @@ struct ReceivedMessage {
 /// discussion of fields. Note that not all fields of a PubSubMessage are
 /// parsed here, only the ones used by this application.
 /// https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct GcpPubSubMessage {
     data: String,
@@ -94,13 +94,13 @@ struct GcpPubSubMessage {
 }
 
 /// A task queue backed by Google Cloud PubSub
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GcpPubSubTaskQueue<T: Task> {
     pubsub_api_endpoint: String,
     gcp_project_id: String,
     subscription_id: String,
     access_token_provider: GcpAccessTokenProvider,
-    phantom_task: PhantomData<*const T>,
+    phantom_task: PhantomData<T>,
     agent: RetryingAgent,
     logger: Logger,
 }
