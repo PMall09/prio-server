@@ -20,6 +20,7 @@ use facilitator::{
         leak_string, Entity, Identity, InOut, ManifestKind, StoragePath, TaskQueueKind,
         WorkloadIdentityPoolParameters,
     },
+    gcp_oauth::GcpAccessTokenProviderFactory,
     intake::BatchIntaker,
     kubernetes::KubernetesClient,
     logging::{event, setup_logging, LoggingConfiguration},
@@ -935,6 +936,7 @@ fn main() -> Result<(), anyhow::Error> {
     );
 
     let mut aws_provider_factory = aws_credentials::ProviderFactory::default();
+    let mut gcp_access_token_provider_factory = GcpAccessTokenProviderFactory::default();
 
     let result = match matches.subcommand() {
         // The configuration of the Args above should guarantee that the
@@ -944,23 +946,39 @@ fn main() -> Result<(), anyhow::Error> {
             &Uuid::new_v4(),
             sub_matches,
             &mut aws_provider_factory,
+            &mut gcp_access_token_provider_factory,
             &root_logger,
         ),
-        ("generate-ingestion-sample-worker", Some(sub_matches)) => {
-            generate_sample_worker(sub_matches, &mut aws_provider_factory, &root_logger)
-        }
-        ("intake-batch", Some(sub_matches)) => {
-            intake_batch_subcommand(sub_matches, &mut aws_provider_factory, &root_logger)
-        }
-        ("intake-batch-worker", Some(sub_matches)) => {
-            intake_batch_worker(sub_matches, &mut aws_provider_factory, &root_logger)
-        }
-        ("aggregate", Some(sub_matches)) => {
-            aggregate_subcommand(sub_matches, &mut aws_provider_factory, &root_logger)
-        }
-        ("aggregate-worker", Some(sub_matches)) => {
-            aggregate_worker(sub_matches, &mut aws_provider_factory, &root_logger)
-        }
+        ("generate-ingestion-sample-worker", Some(sub_matches)) => generate_sample_worker(
+            sub_matches,
+            &mut aws_provider_factory,
+            &mut gcp_access_token_provider_factory,
+            &root_logger,
+        ),
+        ("intake-batch", Some(sub_matches)) => intake_batch_subcommand(
+            sub_matches,
+            &mut aws_provider_factory,
+            &mut gcp_access_token_provider_factory,
+            &root_logger,
+        ),
+        ("intake-batch-worker", Some(sub_matches)) => intake_batch_worker(
+            sub_matches,
+            &mut aws_provider_factory,
+            &mut gcp_access_token_provider_factory,
+            &root_logger,
+        ),
+        ("aggregate", Some(sub_matches)) => aggregate_subcommand(
+            sub_matches,
+            &mut aws_provider_factory,
+            &mut gcp_access_token_provider_factory,
+            &root_logger,
+        ),
+        ("aggregate-worker", Some(sub_matches)) => aggregate_worker(
+            sub_matches,
+            &mut aws_provider_factory,
+            &mut gcp_access_token_provider_factory,
+            &root_logger,
+        ),
         ("lint-manifest", Some(sub_matches)) => lint_manifest(sub_matches, &root_logger),
         (_, _) => Ok(()),
     };
@@ -1016,13 +1034,20 @@ fn crypto_self_check(matches: &ArgMatches, logger: &Logger) -> Result<()> {
 fn generate_sample_worker(
     sub_matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     root_logger: &Logger,
 ) -> Result<(), anyhow::Error> {
     let interval = value_t!(sub_matches.value_of("generation-interval"), u64)?;
 
     loop {
         let trace_id = Uuid::new_v4();
-        let result = generate_sample(&trace_id, sub_matches, aws_provider_factory, root_logger);
+        let result = generate_sample(
+            &trace_id,
+            sub_matches,
+            aws_provider_factory,
+            gcp_access_token_provider_factory,
+            root_logger,
+        );
 
         if let Err(e) = result {
             error!(
@@ -1186,6 +1211,7 @@ fn generate_sample(
     trace_id: &Uuid,
     sub_matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     logger: &Logger,
 ) -> Result<(), anyhow::Error> {
     let kube_namespace = sub_matches.value_of("kube-namespace");
@@ -1226,6 +1252,7 @@ fn generate_sample(
                 Entity::Peer,
                 sub_matches,
                 aws_provider_factory,
+                gcp_access_token_provider_factory,
                 logger,
             )?,
             batch_signing_key: own_batch_signing_key,
@@ -1267,6 +1294,7 @@ fn generate_sample(
                 Entity::Facilitator,
                 sub_matches,
                 aws_provider_factory,
+                gcp_access_token_provider_factory,
                 logger,
             )?,
             batch_signing_key: own_batch_signing_key,
@@ -1307,14 +1335,19 @@ fn intake_batch<F>(
     sub_matches: &ArgMatches,
     metrics_collector: Option<&IntakeMetricsCollector>,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     parent_logger: &Logger,
     callback: F,
 ) -> Result<(), anyhow::Error>
 where
     F: FnMut(&Logger),
 {
-    let mut intake_transport =
-        intake_transport_from_args(sub_matches, aws_provider_factory, parent_logger)?;
+    let mut intake_transport = intake_transport_from_args(
+        sub_matches,
+        aws_provider_factory,
+        gcp_access_token_provider_factory,
+        parent_logger,
+    )?;
 
     // We need the bucket to which we will write validations for the
     // peer data share processor, which can either be fetched from the
@@ -1352,6 +1385,7 @@ where
             PathOrInOut::Path(peer_validation_bucket),
             sub_matches,
             aws_provider_factory,
+            gcp_access_token_provider_factory,
             parent_logger,
         )?,
         batch_signing_key: batch_signing_key_from_arg(sub_matches)?,
@@ -1369,6 +1403,7 @@ where
             PathOrInOut::InOut(InOut::Output),
             sub_matches,
             aws_provider_factory,
+            gcp_access_token_provider_factory,
             parent_logger,
         )?,
         batch_signing_key: batch_signing_key_from_arg(sub_matches)?,
@@ -1421,6 +1456,7 @@ where
 fn intake_batch_subcommand(
     sub_matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     parent_logger: &Logger,
 ) -> Result<(), anyhow::Error> {
     crypto_self_check(sub_matches, parent_logger).context("crypto self check failed")?;
@@ -1432,6 +1468,7 @@ fn intake_batch_subcommand(
         sub_matches,
         None,
         aws_provider_factory,
+        gcp_access_token_provider_factory,
         parent_logger,
         |_| {}, // no-op callback
     )
@@ -1440,12 +1477,18 @@ fn intake_batch_subcommand(
 fn intake_batch_worker(
     sub_matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     parent_logger: &Logger,
 ) -> Result<(), anyhow::Error> {
     let metrics_collector = IntakeMetricsCollector::new()?;
     let scrape_port = value_t!(sub_matches.value_of("metrics-scrape-port"), u16)?;
     let _runtime = start_metrics_scrape_endpoint(scrape_port, parent_logger)?;
-    let queue = intake_task_queue_from_args(sub_matches, aws_provider_factory, parent_logger)?;
+    let queue = intake_task_queue_from_args(
+        sub_matches,
+        aws_provider_factory,
+        gcp_access_token_provider_factory,
+        parent_logger,
+    )?;
 
     crypto_self_check(sub_matches, parent_logger).context("crypto self check failed")?;
 
@@ -1470,6 +1513,7 @@ fn intake_batch_worker(
                 sub_matches,
                 Some(&metrics_collector),
                 aws_provider_factory,
+                gcp_access_token_provider_factory,
                 parent_logger,
                 |logger| {
                     if let Err(e) =
@@ -1511,6 +1555,7 @@ fn aggregate<F>(
     sub_matches: &ArgMatches,
     metrics_collector: Option<&AggregateMetricsCollector>,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     logger: &Logger,
     callback: F,
 ) -> Result<()>
@@ -1520,8 +1565,12 @@ where
     let instance_name = sub_matches.value_of("instance-name").unwrap();
     let is_first = is_first_from_arg(sub_matches);
 
-    let mut intake_transport =
-        intake_transport_from_args(sub_matches, aws_provider_factory, logger)?;
+    let mut intake_transport = intake_transport_from_args(
+        sub_matches,
+        aws_provider_factory,
+        gcp_access_token_provider_factory,
+        logger,
+    )?;
 
     // We created the bucket to which we wrote copies of our validation
     // shares, so it is simply provided by argument.
@@ -1534,6 +1583,7 @@ where
         PathOrInOut::InOut(InOut::Input),
         sub_matches,
         aws_provider_factory,
+        gcp_access_token_provider_factory,
         logger,
     )?;
 
@@ -1575,6 +1625,7 @@ where
         PathOrInOut::InOut(InOut::Input),
         sub_matches,
         aws_provider_factory,
+        gcp_access_token_provider_factory,
         logger,
     )?;
 
@@ -1631,6 +1682,7 @@ where
         PathOrInOut::Path(portal_bucket),
         sub_matches,
         aws_provider_factory,
+        gcp_access_token_provider_factory,
         logger,
     )?;
 
@@ -1703,6 +1755,7 @@ where
 fn aggregate_subcommand(
     sub_matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     parent_logger: &Logger,
 ) -> Result<(), anyhow::Error> {
     crypto_self_check(sub_matches, parent_logger).context("crypto self check failed")?;
@@ -1732,6 +1785,7 @@ fn aggregate_subcommand(
         sub_matches,
         None,
         aws_provider_factory,
+        gcp_access_token_provider_factory,
         parent_logger,
         |_| {}, // no-op callback
     )
@@ -1740,9 +1794,15 @@ fn aggregate_subcommand(
 fn aggregate_worker(
     sub_matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     parent_logger: &Logger,
 ) -> Result<(), anyhow::Error> {
-    let queue = aggregation_task_queue_from_args(sub_matches, aws_provider_factory, parent_logger)?;
+    let queue = aggregation_task_queue_from_args(
+        sub_matches,
+        aws_provider_factory,
+        gcp_access_token_provider_factory,
+        parent_logger,
+    )?;
     let metrics_collector = AggregateMetricsCollector::new()?;
     let scrape_port = value_t!(sub_matches.value_of("metrics-scrape-port"), u16)?;
     let _runtime = start_metrics_scrape_endpoint(scrape_port, parent_logger)?;
@@ -1778,6 +1838,7 @@ fn aggregate_worker(
                 sub_matches,
                 Some(&metrics_collector),
                 aws_provider_factory,
+                gcp_access_token_provider_factory,
                 parent_logger,
                 |logger| {
                     if let Err(e) =
@@ -1929,6 +1990,7 @@ fn batch_signing_key_from_arg(matches: &ArgMatches) -> Result<BatchSigningKey> {
 fn intake_transport_from_args(
     matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     logger: &Logger,
 ) -> Result<VerifiableAndDecryptableTransport> {
     let identity = value_t!(
@@ -1945,6 +2007,7 @@ fn intake_transport_from_args(
         PathOrInOut::InOut(InOut::Input),
         matches,
         aws_provider_factory,
+        gcp_access_token_provider_factory,
         logger,
     )?;
 
@@ -2012,6 +2075,7 @@ fn transport_from_args(
     path_or_in_out: PathOrInOut,
     matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     logger: &Logger,
 ) -> Result<Box<dyn Transport>> {
     let path = match path_or_in_out {
@@ -2032,6 +2096,7 @@ fn transport_from_args(
         entity,
         matches,
         aws_provider_factory,
+        gcp_access_token_provider_factory,
         logger,
     )
 }
@@ -2042,6 +2107,7 @@ fn transport_for_path(
     entity: Entity,
     matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     logger: &Logger,
 ) -> Result<Box<dyn Transport>> {
     let use_default_aws_credentials_provider = value_t!(
@@ -2061,6 +2127,7 @@ fn transport_for_path(
                 sa_to_impersonate,
                 use_default_aws_credentials_provider,
                 "s3",
+                gcp_access_token_provider_factory,
                 logger,
             )?;
             Ok(Box::new(S3Transport::new(
@@ -2085,8 +2152,10 @@ fn transport_for_path(
                     matches.value_of("gcp-workload-identity-pool-provider"),
                     use_default_aws_credentials_provider,
                     aws_provider_factory,
+                    gcp_access_token_provider_factory,
                     logger,
                 )?,
+                gcp_access_token_provider_factory,
                 logger,
             )?))
         }
@@ -2114,6 +2183,7 @@ fn decode_base64_key(s: &str) -> Result<Vec<u8>> {
 fn intake_task_queue_from_args(
     matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     logger: &Logger,
 ) -> Result<Box<dyn TaskQueue<IntakeBatchTask>>> {
     let task_queue_kind = TaskQueueKind::from_str(
@@ -2137,6 +2207,7 @@ fn intake_task_queue_from_args(
                 gcp_project_id,
                 queue_name,
                 identity,
+                gcp_access_token_provider_factory,
                 logger,
             )?))
         }
@@ -2152,6 +2223,7 @@ fn intake_task_queue_from_args(
                     bool
                 )?,
                 "sqs",
+                gcp_access_token_provider_factory,
                 logger,
             )?;
             Ok(Box::new(AwsSqsTaskQueue::new(
@@ -2167,6 +2239,7 @@ fn intake_task_queue_from_args(
 fn aggregation_task_queue_from_args(
     matches: &ArgMatches,
     aws_provider_factory: &mut aws_credentials::ProviderFactory,
+    gcp_access_token_provider_factory: &mut GcpAccessTokenProviderFactory,
     logger: &Logger,
 ) -> Result<Box<dyn TaskQueue<AggregationTask>>> {
     let task_queue_kind = TaskQueueKind::from_str(
@@ -2190,6 +2263,7 @@ fn aggregation_task_queue_from_args(
                 gcp_project_id,
                 queue_name,
                 identity,
+                gcp_access_token_provider_factory,
                 logger,
             )?))
         }
@@ -2205,6 +2279,7 @@ fn aggregation_task_queue_from_args(
                     bool
                 )?,
                 "sqs",
+                gcp_access_token_provider_factory,
                 logger,
             )?;
             Ok(Box::new(AwsSqsTaskQueue::new(

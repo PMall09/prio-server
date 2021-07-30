@@ -10,7 +10,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::aws_credentials;
+use crate::{aws_credentials, gcp_oauth::GcpAccessTokenProviderFactory};
 
 /// Identity represents a cloud identity: Either an AWS IAM ARN (i.e. "arn:...")
 /// or a GCP ServiceAccount (i.e. "foo@bar.com"). It treats the empty string as
@@ -93,6 +93,7 @@ impl WorkloadIdentityPoolParameters {
         workload_identity_pool_provider_id: Option<&str>,
         use_default_aws_credentials_provider: bool,
         aws_provider_factory: &mut aws_credentials::ProviderFactory,
+        gcp_access_token_provider_cache: &mut GcpAccessTokenProviderFactory,
         logger: &Logger,
     ) -> Result<Option<Self>> {
         let parameters = match workload_identity_pool_provider_id {
@@ -111,6 +112,7 @@ impl WorkloadIdentityPoolParameters {
                     Identity::none(),
                     use_default_aws_credentials_provider,
                     "IAM federation",
+                    gcp_access_token_provider_cache,
                     logger,
                 )?,
             }),
