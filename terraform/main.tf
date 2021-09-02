@@ -105,7 +105,14 @@ variable "is_first" {
   default     = false
   description = "Whether the data share processors created by this environment are \"first\" or \"PHA servers\""
 }
-
+variable "intake_min_age" {
+  type        = string
+  default     = "0.5h"
+  description = <<DESCRIPTION
+Minimum age of ingestion batches for workflow-manager to schedule intake tasks
+for. The value should be a string parseable by Go time.ParseDuration.
+DESCRIPTION
+}
 variable "intake_max_age" {
   type        = string
   default     = "6h"
@@ -528,6 +535,7 @@ module "data_share_processors" {
   portal_server_manifest_base_url                = each.value.portal_server_manifest_base_url
   own_manifest_base_url                          = local.manifest.base_url
   is_first                                       = var.is_first
+  intake_min_age                                 = var.intake_min_age
   intake_max_age                                 = var.intake_max_age
   aggregation_period                             = each.value.aggregation_period
   aggregation_grace_period                       = each.value.aggregation_grace_period
