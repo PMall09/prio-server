@@ -57,7 +57,7 @@ portal_server_manifest_base_url is optional and overrides
 default_portal_server_manifest_base_url for the locality.
 aggregation_period and aggregation_grace_period values are optional and override
 default_aggregation_period and default_aggregation_grace_period, respectively,
-for the locality. The values should be strings parseable by Go's
+for the locality. The values should be strings parseable by Go
 time.ParseDuration.
 DESCRIPTION
 }
@@ -111,7 +111,7 @@ variable "intake_max_age" {
   default     = "6h"
   description = <<DESCRIPTION
 Maximum age of ingestion batches for workflow-manager to schedule intake tasks
-for. The value should be a string parseable by Go's time.ParseDuration.
+for. The value should be a string parseable by Go time.ParseDuration.
 DESCRIPTION
 }
 
@@ -120,7 +120,7 @@ variable "default_aggregation_period" {
   default     = "3h"
   description = <<DESCRIPTION
 Aggregation period used by workflow manager if none is provided by the locality
-configuration. The value should be a string parseable by Go's
+configuration. The value should be a string parseable by Go
 time.ParseDuration.
 DESCRIPTION
 }
@@ -130,7 +130,7 @@ variable "default_aggregation_grace_period" {
   default     = "1h"
   description = <<DESCRIPTION
 Aggregation grace period used by workflow manager if none is provided by the locality
-configuration. The value should be a string parseable by Go's
+configuration. The value should be a string parseable by Go
 time.ParseDuration.
 DESCRIPTION
 }
@@ -138,7 +138,7 @@ DESCRIPTION
 variable "default_peer_share_processor_manifest_base_url" {
   type        = string
   description = <<DESCRIPTION
-Base URL relative to which the peer share processor's manifests can be found, if
+Base URL relative to which the peer share processor manifests can be found, if
 none is provided by the locality configuration.
 DESCRIPTION
 }
@@ -146,7 +146,7 @@ DESCRIPTION
 variable "default_portal_server_manifest_base_url" {
   type        = string
   description = <<DESCRIPTION
-Base URL relative to which the portal server's manifests can be found, if none
+Base URL relative to which the portal server manifests can be found, if none
 is provided by the locality configuration.
 DESCRIPTION
 }
