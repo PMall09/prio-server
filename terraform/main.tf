@@ -535,7 +535,7 @@ module "data_share_processors" {
   portal_server_manifest_base_url                = each.value.portal_server_manifest_base_url
   own_manifest_base_url                          = local.manifest.base_url
   is_first                                       = var.is_first
-  intake_min_age                                 = var.intake_min_age
+  #intake_min_age                                 = var.intake_min_age
   intake_max_age                                 = var.intake_max_age
   aggregation_period                             = each.value.aggregation_period
   aggregation_grace_period                       = each.value.aggregation_grace_period
