@@ -103,7 +103,9 @@ DESCRIPTION
 variable "is_first" {
   type        = bool
   default     = false
-  description = "Whether the data share processors created by this environment are \"first\" or \"PHA servers\""
+description = <<DESCRIPTION
+Whether the data share processors created by this environment are \"first\" or \"PHA servers\""
+DESCRIPTION
 }
 variable "intake_min_age" {
   type        = string
@@ -116,7 +118,7 @@ DESCRIPTION
 variable "intake_max_age" {
   type        = string
   default     = "6h"
-  description = <<DESCRIPTION
+description = <<DESCRIPTION
 Maximum age of ingestion batches for workflow-manager to schedule intake tasks
 for. The value should be a string parseable by Go time.ParseDuration.
 DESCRIPTION
@@ -125,7 +127,7 @@ DESCRIPTION
 variable "default_aggregation_period" {
   type        = string
   default     = "3h"
-  description = <<DESCRIPTION
+description = <<DESCRIPTION
 Aggregation period used by workflow manager if none is provided by the locality
 configuration. The value should be a string parseable by Go
 time.ParseDuration.
@@ -135,7 +137,7 @@ DESCRIPTION
 variable "default_aggregation_grace_period" {
   type        = string
   default     = "1h"
-  description = <<DESCRIPTION
+description = <<DESCRIPTION
 Aggregation grace period used by workflow manager if none is provided by the locality
 configuration. The value should be a string parseable by Go
 time.ParseDuration.
@@ -144,7 +146,7 @@ DESCRIPTION
 
 variable "default_peer_share_processor_manifest_base_url" {
   type        = string
-  description = <<DESCRIPTION
+description = <<DESCRIPTION
 Base URL relative to which the peer share processor manifests can be found, if
 none is provided by the locality configuration.
 DESCRIPTION
@@ -152,7 +154,7 @@ DESCRIPTION
 
 variable "default_portal_server_manifest_base_url" {
   type        = string
-  description = <<DESCRIPTION
+description = <<DESCRIPTION
 Base URL relative to which the portal server manifests can be found, if none
 is provided by the locality configuration.
 DESCRIPTION
