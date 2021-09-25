@@ -18,10 +18,8 @@ variable "use_aws" {
 variable "pure_gcp" {
   type        = bool
   default     = false
-description = <<DESCRIPTION
-A data share processor that runs on GCP (i.e., use_aws=false) will still manage
-some resources in AWS (IAM roles) _unless_ this variable is set to true.
-DESCRIPTION
+description = "A data share processor that runs on GCP (i.e., use_aws=false) will still manage
+some resources in AWS (IAM roles) _unless_ this variable is set to true."
 }
 
 variable "aws_region" {
@@ -64,9 +62,7 @@ DESCRIPTION
 
 variable "manifest_domain" {
   type        = string
-description = <<DESCRIPTION
-Domain (plus optional relative path) to which the global and specific manifests of the environment should be uploaded.
-DESCRIPTION
+description = "Domain (plus optional relative path) to which the global and specific manifests of the environment should be uploaded."
 }
 
 variable "managed_dns_zone" {
