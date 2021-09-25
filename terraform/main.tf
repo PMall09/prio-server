@@ -18,7 +18,7 @@ variable "use_aws" {
 variable "pure_gcp" {
   type        = bool
   default     = false
-  description = "A data share processor that runs on GCP (i.e., use_aws=false) will still manage some resources in AWS (IAM roles) _unless_ this variable is set to true."
+   description = "A data share processor that runs on GCP (i.e., use_aws=false) will still manage some resources in AWS (IAM roles) _unless_ this variable is set to true."
 }
 
 variable "aws_region" {
